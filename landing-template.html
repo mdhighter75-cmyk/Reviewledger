@@ -1,0 +1,742 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reviewledger — AI Review Intelligence for E-commerce Sellers</title>
+<meta name="description" content="Upload a CSV of customer reviews and get an AI-generated report on what customers love, what's costing you sales, and what to fix first." />
+<style>
+  :root {
+    --navy: #0A0F1F;
+    --navy-soft: #0F1526;
+    --navy-card: rgba(255, 255, 255, 0.04);
+    --gold: #D4AF37;
+    --gold-soft: rgba(212, 175, 55, 0.35);
+    --ink: #F4F1E8;
+    --ink-dim: #A9AFC3;
+    --border: rgba(255, 255, 255, 0.08);
+    --shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    min-width: 0;
+    background: var(--navy);
+    background-image:
+      radial-gradient(60% 50% at 85% -5%, rgba(212, 175, 55, 0.14), transparent 60%),
+      radial-gradient(50% 40% at 10% 0%, rgba(212, 175, 55, 0.08), transparent 60%);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+
+  img, svg { max-width: 100%; display: block; }
+
+  a { color: inherit; text-decoration: none; }
+
+  .wrap {
+    width: 100%;
+    max-width: 1200px;
+    margin-inline: auto;
+    padding-inline: clamp(1.25rem, 5vw, 3rem);
+  }
+
+  /* ---------- Nav ---------- */
+  header.site {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(10, 15, 31, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 1rem;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: 0.01em;
+  }
+
+  .logo-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--gold), #9c7d22);
+    display: grid;
+    place-items: center;
+    color: #0A0F1F;
+    font-weight: 800;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
+
+  .nav-links {
+    display: none;
+    align-items: center;
+    gap: 2rem;
+    font-size: 0.92rem;
+    color: var(--ink-dim);
+  }
+
+  .nav-links a:hover { color: var(--ink); }
+
+  .btn.nav-cta { display: none; }
+
+  @media (min-width: 780px) {
+    .nav-links { display: flex; }
+    .btn.nav-cta { display: inline-flex; }
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1.6rem;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #E8C862, var(--gold) 45%, #B8912C);
+    color: #0A0F1F;
+    box-shadow: 0 8px 24px rgba(212, 175, 55, 0.28);
+  }
+
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(212, 175, 55, 0.4); }
+
+  .btn-ghost {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: var(--border);
+    color: var(--ink);
+  }
+
+  .btn-ghost:hover { background: rgba(255, 255, 255, 0.07); border-color: var(--gold-soft); }
+
+  .btn-block { width: 100%; }
+
+  /* ---------- Glass card ---------- */
+  .glass {
+    background: var(--navy-card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: var(--shadow);
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    padding-block: clamp(3.5rem, 9vw, 7rem) clamp(3rem, 8vw, 5rem);
+    text-align: center;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(212, 175, 55, 0.1);
+    border: 1px solid var(--gold-soft);
+    color: var(--gold);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+  }
+
+  .hero h1 {
+    font-size: clamp(2.1rem, 6vw, 3.75rem);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    margin: 0 auto 1.25rem;
+    max-width: 46ch;
+    font-weight: 700;
+  }
+
+  .hero h1 span {
+    background: linear-gradient(135deg, #F3DC8F, var(--gold) 55%, #B8912C);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .hero p.sub {
+    font-size: clamp(1rem, 2.2vw, 1.2rem);
+    color: var(--ink-dim);
+    max-width: 56ch;
+    margin: 0 auto 2.25rem;
+  }
+
+  .hero-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.9rem;
+  }
+
+  .cta-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.85rem;
+  }
+
+  .hero-note {
+    font-size: 0.82rem;
+    color: var(--ink-dim);
+  }
+
+  .hero-visual {
+    margin-top: clamp(2.5rem, 7vw, 4.5rem);
+    padding: clamp(1rem, 3vw, 1.75rem);
+  }
+
+  .hero-visual .report-line {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+    color: var(--ink-dim);
+    text-align: left;
+  }
+
+  .hero-visual .report-line:last-child { border-bottom: none; }
+
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-good { background: #4ADE80; }
+  .dot-warn { background: var(--gold); }
+  .dot-bad { background: #F87171; }
+
+  /* ---------- Section shell ---------- */
+  section { padding-block: clamp(3rem, 8vw, 5.5rem); }
+
+  .section-head {
+    text-align: center;
+    max-width: 40rem;
+    margin: 0 auto clamp(2rem, 5vw, 3.25rem);
+  }
+
+  .section-head .kicker {
+    color: var(--gold);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.6rem;
+  }
+
+  .section-head h2 {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    letter-spacing: -0.01em;
+    margin: 0 0 0.75rem;
+    font-weight: 700;
+  }
+
+  .section-head p {
+    color: var(--ink-dim);
+    font-size: 1rem;
+    margin: 0;
+  }
+
+  /* ---------- Feature cards ---------- */
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  @media (min-width: 700px) {
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .feature-card {
+    padding: clamp(1.5rem, 3vw, 2rem);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+
+  .feature-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--gold-soft);
+  }
+
+  .feature-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: rgba(212, 175, 55, 0.12);
+    border: 1px solid var(--gold-soft);
+    color: var(--gold);
+    margin-bottom: 1.1rem;
+  }
+
+  .feature-card h3 {
+    font-size: 1.12rem;
+    margin: 0 0 0.5rem;
+    font-weight: 700;
+  }
+
+  .feature-card p {
+    color: var(--ink-dim);
+    font-size: 0.94rem;
+    margin: 0;
+  }
+
+  /* ---------- How it works ---------- */
+  .steps {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    counter-reset: step;
+  }
+
+  @media (min-width: 700px) {
+    .steps { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .step {
+    padding: clamp(1.5rem, 3vw, 2rem);
+    position: relative;
+  }
+
+  .step-num {
+    display: inline-grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold), #9c7d22);
+    color: #0A0F1F;
+    font-weight: 800;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  .step h3 { font-size: 1.05rem; margin: 0 0 0.4rem; font-weight: 700; }
+  .step p { color: var(--ink-dim); font-size: 0.92rem; margin: 0; }
+
+  /* ---------- Social proof ---------- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    text-align: center;
+    margin-bottom: clamp(2.5rem, 6vw, 3.5rem);
+  }
+
+  @media (min-width: 700px) {
+    .stats { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  .stat { padding: 1.25rem 0.5rem; }
+
+  .stat strong {
+    display: block;
+    font-size: clamp(1.5rem, 3.5vw, 2rem);
+    color: var(--gold);
+    font-weight: 800;
+  }
+
+  .stat span { color: var(--ink-dim); font-size: 0.82rem; }
+
+  .quotes {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  @media (min-width: 700px) {
+    .quotes { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .quote-card {
+    padding: clamp(1.5rem, 3vw, 1.85rem);
+  }
+
+  .quote-card p.text {
+    font-size: 0.95rem;
+    color: var(--ink);
+    margin: 0 0 1.1rem;
+  }
+
+  .quote-person {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+
+  .avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gold-soft), transparent);
+    border: 1px solid var(--gold-soft);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--gold);
+    flex-shrink: 0;
+  }
+
+  .quote-person .who strong { display: block; font-size: 0.88rem; }
+  .quote-person .who span { color: var(--ink-dim); font-size: 0.78rem; }
+
+  /* ---------- Pricing ---------- */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    max-width: 56rem;
+    margin-inline: auto;
+  }
+
+  @media (min-width: 700px) {
+    .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  .price-card {
+    padding: clamp(1.75rem, 4vw, 2.25rem);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: relative;
+  }
+
+  .price-card.featured {
+    border-color: var(--gold-soft);
+    box-shadow: 0 0 0 1px rgba(212, 175, 55, 0.25), var(--shadow);
+  }
+
+  .price-badge {
+    position: absolute;
+    top: -12px;
+    right: 1.5rem;
+    background: linear-gradient(135deg, var(--gold), #9c7d22);
+    color: #0A0F1F;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+  }
+
+  .price-card h3 { margin: 0; font-size: 1.15rem; font-weight: 700; }
+  .price-card .amount { font-size: 2.25rem; font-weight: 800; }
+  .price-card .amount small { font-size: 0.95rem; color: var(--ink-dim); font-weight: 500; }
+
+  .price-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+    color: var(--ink-dim);
+    flex: 1;
+  }
+
+  .price-list li { display: flex; gap: 0.6rem; align-items: flex-start; }
+  .price-list li::before { content: "✓"; color: var(--gold); font-weight: 800; flex-shrink: 0; }
+
+  /* ---------- Final CTA ---------- */
+  .cta-banner {
+    padding: clamp(2.5rem, 6vw, 4rem);
+    text-align: center;
+    background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(255, 255, 255, 0.03));
+  }
+
+  .cta-banner h2 {
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    margin: 0 0 0.75rem;
+    font-weight: 700;
+  }
+
+  .cta-banner p {
+    color: var(--ink-dim);
+    max-width: 40rem;
+    margin: 0 auto 1.75rem;
+  }
+
+  /* ---------- Footer ---------- */
+  footer.site {
+    border-top: 1px solid var(--border);
+    padding-block: 2.5rem;
+  }
+
+  .footer-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: flex-start;
+  }
+
+  @media (min-width: 700px) {
+    .footer-grid {
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+
+  .footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    font-size: 0.85rem;
+    color: var(--ink-dim);
+  }
+
+  .footer-links a:hover { color: var(--ink); }
+
+  .footer-bottom {
+    color: var(--ink-dim);
+    font-size: 0.78rem;
+    margin-top: 1.5rem;
+  }
+</style>
+</head>
+<body>
+
+  <header class="site">
+    <div class="wrap nav">
+      <a href="#top" class="logo">
+        <span class="logo-mark">R</span>
+        Reviewledger
+      </a>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#pricing">Pricing</a>
+      </nav>
+      <a href="#pricing" class="btn btn-primary nav-cta">Analyze My Reviews</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- 1. Hero -->
+    <section class="hero">
+      <div class="wrap">
+        <span class="eyebrow">★ AI Review Intelligence</span>
+        <h1>Turn a pile of reviews into <span>your next best-selling fix.</span></h1>
+        <p class="sub">
+          Upload a CSV of customer reviews and get a plain-English report on what
+          shoppers love, what's quietly costing you sales, and exactly what to fix first —
+          in under two minutes.
+        </p>
+        <div class="hero-cta">
+          <div class="cta-row">
+            <a href="#pricing" class="btn btn-primary">Analyze My Reviews Free</a>
+            <a href="#how-it-works" class="btn btn-ghost">See how it works</a>
+          </div>
+          <span class="hero-note">No signup required for your first report · Free for up to 50 reviews</span>
+        </div>
+
+        <div class="hero-visual glass wrap" style="max-width: 640px;">
+          <div class="report-line"><span class="dot dot-good"></span> Customers love the fast shipping and packaging quality</div>
+          <div class="report-line"><span class="dot dot-warn"></span> Sizing runs small — mentioned in 18% of 3-star reviews</div>
+          <div class="report-line"><span class="dot dot-bad"></span> Fix first: instructions missing for the assembly step</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Three feature cards -->
+    <section id="features">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Why sellers use it</div>
+          <h2>Everything hiding in your reviews, surfaced instantly</h2>
+          <p>No spreadsheets, no manual tagging — just upload and read the report.</p>
+        </div>
+        <div class="grid-3">
+          <div class="feature-card glass">
+            <div class="feature-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+            </div>
+            <h3>Instant AI analysis</h3>
+            <p>Drop in a CSV export from Amazon, Etsy, or Shopify and get a full breakdown before your coffee gets cold.</p>
+          </div>
+          <div class="feature-card glass">
+            <div class="feature-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <h3>A ranked fix list</h3>
+            <p>No vague sentiment scores — a prioritized list of what to fix first, ordered by revenue impact.</p>
+          </div>
+          <div class="feature-card glass">
+            <div class="feature-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+            </div>
+            <h3>Built for small sellers</h3>
+            <p>No enterprise dashboards to learn. One upload, one plain-English report, in minutes.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. How it works -->
+    <section id="how-it-works">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Simple by design</div>
+          <h2>From CSV to clarity in three steps</h2>
+          <p>No integrations, no API keys to manage on your end.</p>
+        </div>
+        <div class="steps">
+          <div class="step glass">
+            <span class="step-num">1</span>
+            <h3>Export your reviews</h3>
+            <p>Download a CSV of reviews from your storefront or marketplace — Amazon, Etsy, and Shopify all work.</p>
+          </div>
+          <div class="step glass">
+            <span class="step-num">2</span>
+            <h3>Upload to Reviewledger</h3>
+            <p>Drag and drop the file in. Nothing leaves your browser except the review text itself.</p>
+          </div>
+          <div class="step glass">
+            <span class="step-num">3</span>
+            <h3>Get your report</h3>
+            <p>Read a clear breakdown of what's working, what's not, and what to fix first — ready to act on today.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Social proof -->
+    <section>
+      <div class="wrap">
+        <div class="stats">
+          <div class="stat"><strong>2 min</strong><span>average time to report</span></div>
+          <div class="stat"><strong>50+</strong><span>reviews analyzed free</span></div>
+          <div class="stat"><strong>3</strong><span>marketplaces supported</span></div>
+          <div class="stat"><strong>$19</strong><span>per month for Pro</span></div>
+        </div>
+        <div class="section-head">
+          <div class="kicker">Trusted by sellers</div>
+          <h2>What early sellers are saying</h2>
+        </div>
+        <div class="quotes">
+          <div class="quote-card glass">
+            <p class="text">"Found a packaging issue I'd been missing for months, buried in a handful of 3-star reviews. Fixed it in a week."</p>
+            <div class="quote-person">
+              <div class="avatar">JM</div>
+              <div class="who"><strong>Jamie M.</strong><span>Etsy seller</span></div>
+            </div>
+          </div>
+          <div class="quote-card glass">
+            <p class="text">"I was manually reading through 400 reviews before. Now I upload the CSV and have the answer in two minutes."</p>
+            <div class="quote-person">
+              <div class="avatar">RK</div>
+              <div class="who"><strong>Ravi K.</strong><span>Amazon FBA seller</span></div>
+            </div>
+          </div>
+          <div class="quote-card glass">
+            <p class="text">"The fix list alone paid for the Pro plan the first month — we shipped the sizing fix it flagged and returns dropped."</p>
+            <div class="quote-person">
+              <div class="avatar">TS</div>
+              <div class="who"><strong>Talia S.</strong><span>Shopify store owner</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Simple pricing</div>
+          <h2>Start free, upgrade when you outgrow it</h2>
+          <p>No contracts. Cancel any time.</p>
+        </div>
+        <div class="pricing-grid">
+          <div class="price-card glass">
+            <h3>Free</h3>
+            <div class="amount">$0</div>
+            <ul class="price-list">
+              <li>Analyze up to 50 reviews per upload</li>
+              <li>Full AI-generated report</li>
+              <li>Works with Amazon, Etsy, Shopify exports</li>
+              <li>No account required</li>
+            </ul>
+            <a href="#top" class="btn btn-ghost btn-block">Analyze My Reviews Free</a>
+          </div>
+          <div class="price-card glass featured">
+            <span class="price-badge">Most popular</span>
+            <h3>Pro</h3>
+            <div class="amount">$19 <small>/ month</small></div>
+            <ul class="price-list">
+              <li>Analyze up to 500 reviews per upload</li>
+              <li>Full AI-generated report</li>
+              <li>Priority processing</li>
+              <li>Cancel any time</li>
+            </ul>
+            <a href="#top" class="btn btn-primary btn-block">Upgrade to Pro</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section>
+      <div class="wrap">
+        <div class="cta-banner glass">
+          <h2>Your reviews already have the answer.</h2>
+          <p>Stop guessing what's costing you sales. Upload your CSV and get a clear, prioritized fix list in minutes.</p>
+          <a href="#top" class="btn btn-primary">Analyze My Reviews Free</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <div class="footer-grid">
+        <a href="#top" class="logo">
+          <span class="logo-mark">R</span>
+          Reviewledger
+        </a>
+        <nav class="footer-links">
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How it works</a>
+          <a href="#pricing">Pricing</a>
+        </nav>
+      </div>
+      <div class="footer-bottom">© 2026 Reviewledger. All rights reserved.</div>
+    </div>
+  </footer>
+
+</body>
+</html>
