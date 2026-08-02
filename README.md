@@ -1,80 +1,119 @@
-# Reviewledger
+# Empire Content Factory
 
-Upload a CSV of customer reviews → get an AI-generated report on what
-customers love, what's costing you sales, and what to fix first.
+Upload one source file — a rough draft, transcript, raw notes, article, product
+description, or topic outline — and get a complete multi-channel content
+package back: blog post, social posts, short-form video scripts, a full
+YouTube script, email copy, ad copy, SEO metadata, and image-generation
+prompts, all grounded in what you actually gave it.
+
+One machine, one build button, one ZIP at the end.
+
+## How it works
+
+```
+UPLOAD → CHOOSE OUTPUTS → BUILD → REVIEW → DOWNLOAD PACKAGE
+```
+
+Under the hood, the "BUILD CONTENT PACKAGE" button runs a pipeline of
+specialized AI stages, each with a narrow job:
+
+1. **Source Analyzer** — extracts key ideas, facts, offers, audience signals, and themes from your source material.
+2. **Content Strategist** — decides the strongest angle, hooks, content pillars, and a publishing calendar.
+3. **Long-Form Writer** — blog/article, newsletter, product description, landing-page copy.
+4. **Social Media Creator** — Facebook, Instagram, LinkedIn, X/Twitter posts, hashtags.
+5. **Short-Form Video Writer** — TikTok, Reels, and YouTube Shorts hooks/scripts.
+6. **YouTube Writer** — full video script (with chapters + title ideas) and description.
+7. **Email Creator** — newsletter-style campaign + follow-up sequence, and a sales email.
+8. **Ad Copy Creator** — multiple ad angles with headlines, primary text, and CTAs.
+9. **SEO Packager** — SEO title, meta description, slug, keywords, tags, FAQs.
+10. **Creative Director** — image prompts and thumbnail prompts for AI image tools.
+
+Stages 3–10 only run for the output formats you actually selected, and each
+group runs independently — if one stage fails, the rest of your package still
+finishes. You can regenerate any single asset later without rebuilding
+anything else.
+
+Every stage is instructed to work only from the facts in your source material
+and the extracted analysis — it's not supposed to invent names, numbers, or
+claims that aren't there.
 
 ## What's in this project
 
-- `src/` — React frontend (Vite + Tailwind)
-- `api/analyze.js` — serverless function that calls the Anthropic API (keeps your key secret)
-- `api/create-checkout-session.js` — serverless function that creates a Stripe checkout session
-- `vercel.json` — routing config for deployment on Vercel
-
-## Step-by-step: getting this live
-
-### 1. Push to GitHub
-1. Create a new repository on github.com (e.g. `reviewledger`)
-2. From this folder, run:
-   ```
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/YOUR_USERNAME/reviewledger.git
-   git push -u origin main
-   ```
-
-### 2. Deploy to Vercel
-1. Go to vercel.com → sign up with your GitHub account (free)
-2. Click "Add New Project" → import your `reviewledger` repo
-3. Vercel auto-detects Vite — leave default build settings
-4. Before deploying, add environment variables (see below)
-5. Click Deploy
-
-### 3. Add your Anthropic API key
-1. Go to console.anthropic.com → API Keys → create a new key
-2. In Vercel: Project → Settings → Environment Variables
-3. Add `ANTHROPIC_API_KEY` = your key
-4. Redeploy (Deployments tab → ... → Redeploy)
-
-This is the only step required to make the core tool (review analysis) work.
-Stripe (steps 4-5) is only needed once you want to charge for the Pro tier.
-
-### 4. Set up Stripe (when ready to charge)
-1. Go to dashboard.stripe.com → sign up
-2. Go to Product catalog → create a product, e.g. "Reviewledger Pro", $19/month recurring
-3. Copy the Price ID (starts with `price_`)
-4. Go to Developers → API keys → copy your Secret key (starts with `sk_live_` or `sk_test_` while testing)
-5. In Vercel, add environment variables:
-   - `STRIPE_SECRET_KEY` = your secret key
-   - `STRIPE_PRICE_ID` = your price ID
-6. Redeploy
-
-### 5. Connect your domain
-1. Buy a domain (Namecheap, Porkbun, etc.) — about $10-15/year
-2. In Vercel: Project → Settings → Domains → add your domain
-3. Follow Vercel's instructions to update your domain's DNS records (usually just adding an A record or CNAME at your registrar)
-4. Wait a few minutes to a few hours for DNS to propagate
+- `src/` — React frontend (Vite + Tailwind), a dark single-page app with three screens: Dashboard, Processing, Results.
+- `src/lib/outputFormats.js` — the shared registry of every content format, its group/agent, and export folder. Shared by the frontend and the API.
+- `src/lib/pipeline.js` — client-side orchestration: calls the API stage by stage, reports progress, supports single-asset regeneration.
+- `src/lib/storage.js` — project persistence (currently `localStorage`; see below for upgrading it).
+- `src/lib/zipExport.js` — builds the downloadable ZIP with correctly named folders.
+- `api/generate.js` — the one serverless function that talks to the Anthropic API. Keeps your API key server-side.
+- `api/_lib/prompts.js` — system prompts / per-stage writing instructions.
+- `vercel.json` — routing config for deployment on Vercel.
 
 ## Local development
 
-```
+```bash
 npm install
-cp .env.example .env.local   # then fill in your keys
+cp env.example .env.local   # then paste in your Anthropic key
 npm run dev
 ```
 
-## How the free/paid tiers work
+This project uses [Vercel's local dev server](https://vercel.com/docs/cli) to
+run the `api/` serverless function alongside the frontend, so `vercel dev` is
+the easiest way to run everything together:
 
-- Free: analyzes up to 50 reviews per upload
-- Pro ($19/mo): analyzes up to 500 reviews per upload, set via Stripe checkout
-- After a successful Stripe payment, the user is redirected back with `?checkout=success`,
-  which sets a `reviewledger_pro` flag in their browser's local storage. This is a simple
-  MVP approach — for a more robust system later, you'd track subscriptions server-side
-  tied to user accounts.
+```bash
+npm install -g vercel
+vercel dev
+```
 
-## Where to find your first users
+(Plain `npm run dev` also works for frontend-only work, but `/api/generate`
+calls will fail unless something is serving that route — `vercel dev` handles
+both.)
 
-- Reddit: r/FulfillmentByAmazon, r/EcommerceSellers, r/Etsy, r/shopify
-- Facebook groups for Amazon/Etsy/Shopify sellers
-- Indie Hackers (indiehackers.com) — share it as a "show & tell" launch post
+## Deploying to Vercel
+
+1. Push this repo to GitHub.
+2. Go to [vercel.com](https://vercel.com) → **Add New Project** → import the repo. Vercel auto-detects Vite.
+3. Before deploying, add an environment variable: **Settings → Environment Variables**
+   - `ANTHROPIC_API_KEY` = your key from [console.anthropic.com](https://console.anthropic.com)
+4. Deploy.
+
+That's the only environment variable required.
+
+## Project memory
+
+Projects (source text, uploaded file name, selected outputs, brand voice,
+audience, generated assets, edits, and per-stage status) are saved to the
+browser's `localStorage` as you work, so closing the tab and coming back
+reloads exactly where you left off. Use the project switcher in the header to
+create new projects or jump between existing ones.
+
+This is intentionally a thin storage layer (`src/lib/storage.js`) with a small,
+explicit interface — `listProjects`, `getProject`, `saveProject`,
+`deleteProject`, `createProject`. To upgrade to a real database later, swap
+the implementation behind that same interface (e.g. call a new `/api/projects`
+route backed by Postgres/SQLite) — nothing in the UI needs to change.
+
+## Exporting your content
+
+- **Download** on any individual asset saves that one file (`.md`/`.txt`).
+- **Download All (ZIP)** on the Results screen bundles everything into folders:
+
+```
+project-name/
+  source/            original source text
+  strategy/          source analysis, content strategy, content calendar
+  long-form/         blog, newsletter, product description, landing page
+  social/            Facebook, Instagram, LinkedIn, X, hashtags
+  video/              TikTok/Reels/Shorts scripts + full YouTube script/description
+  email/             email campaign, sales email
+  ads/               ad copy
+  seo/               SEO metadata
+  creative/          image prompts, thumbnail prompts
+  project.json       full structured export of everything above
+```
+
+## Notes on this build
+
+- No billing, accounts, or analytics — this is the core content engine only.
+- Failures are isolated per content group, so one broken generation doesn't take down the rest of the package.
+- The pipeline is modular: to add a new content worker, add an entry to `OUTPUT_GROUPS` in `src/lib/outputFormats.js` and its writing instructions in `api/_lib/prompts.js`.
