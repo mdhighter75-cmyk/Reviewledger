@@ -46,7 +46,25 @@ BRAND VOICE / TONE: ${meta.brandVoice || "Not specified - use a clear, confident
 TARGET AUDIENCE: ${meta.audience || "Not specified - infer from the source material"}`;
 }
 
-async function callAnthropic({ apiKey, system, messages, tool, maxTokens }) {
+// Tool-use JSON schemas describe the shape we *want*, but the API does not
+// enforce them - the model can still return a string where an array was
+// requested, drop a field, etc. These helpers coerce known array/string
+// fields back into the shape the rest of the app expects, so a shape
+// mismatch degrades gracefully instead of crashing downstream `.map()` calls.
+function coerceArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value === null || value === undefined || value === "") return [];
+  return [value];
+}
+
+function coerceString(value) {
+  if (typeof value === "string") return value;
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) return value.join("\n");
+  return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+async function callAnthropic({ apiKey, system, messages, tool, maxTokens, stage }) {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -72,8 +90,15 @@ async function callAnthropic({ apiKey, system, messages, tool, maxTokens }) {
   const data = await response.json();
   const toolUse = data.content?.find((b) => b.type === "tool_use" && b.name === tool.name);
   if (!toolUse) {
+    console.error(`[${stage}] model did not return structured output. Raw content:`, JSON.stringify(data.content));
     throw new Error("Model did not return structured output");
   }
+
+  // Log the shape actually returned (field name -> type) so a future schema
+  // mismatch shows up in Vercel logs instead of just crashing the frontend.
+  const shape = Object.fromEntries(Object.entries(toolUse.input || {}).map(([k, v]) => [k, Array.isArray(v) ? `array(${v.length})` : typeof v]));
+  console.log(`[${stage}] tool_use shape:`, JSON.stringify(shape));
+
   return toolUse.input;
 }
 
@@ -102,7 +127,15 @@ async function runAnalyze({ source, meta }, apiKey) {
     },
   ];
 
-  const analysis = await callAnthropic({ apiKey, system: ANALYZER_SYSTEM, messages, tool, maxTokens: 2000 });
+  const raw = await callAnthropic({ apiKey, system: ANALYZER_SYSTEM, messages, tool, maxTokens: 2000, stage: "analyze" });
+  const analysis = {
+    key_ideas: coerceArray(raw.key_ideas),
+    facts: coerceArray(raw.facts),
+    offers: coerceArray(raw.offers),
+    audience_signals: coerceString(raw.audience_signals),
+    themes: coerceArray(raw.themes),
+    important_context: coerceString(raw.important_context),
+  };
   return { analysis };
 }
 
@@ -142,7 +175,18 @@ async function runStrategize({ source, meta, analysis }, apiKey) {
     },
   ];
 
-  const strategy = await callAnthropic({ apiKey, system: STRATEGIST_SYSTEM, messages, tool, maxTokens: 2200 });
+  const raw = await callAnthropic({ apiKey, system: STRATEGIST_SYSTEM, messages, tool, maxTokens: 2200, stage: "strategize" });
+  const strategy = {
+    angle: coerceString(raw.angle),
+    hooks: coerceArray(raw.hooks),
+    content_pillars: coerceArray(raw.content_pillars),
+    publishing_strategy: coerceString(raw.publishing_strategy),
+    content_calendar: coerceArray(raw.content_calendar).map((row) =>
+      row && typeof row === "object"
+        ? { day: coerceString(row.day), channel: coerceString(row.channel), content_idea: coerceString(row.content_idea) }
+        : { day: "", channel: "", content_idea: coerceString(row) }
+    ),
+  };
   return { strategy };
 }
 
@@ -176,6 +220,7 @@ async function runGroup({ group: groupId, outputs, source, meta, analysis, strat
   ];
 
   const maxTokens = Math.min(8000, 1200 * requestedIds.length + 800);
-  const assets = await callAnthropic({ apiKey, system, messages, tool, maxTokens });
+  const raw = await callAnthropic({ apiKey, system, messages, tool, maxTokens, stage: `group:${groupId}` });
+  const assets = Object.fromEntries(requestedIds.map((id) => [id, coerceString(raw[id])]));
   return { assets };
 }
