@@ -48,23 +48,37 @@ TARGET AUDIENCE: ${meta.audience || "Not specified - infer from the source mater
 
 // Tool-use JSON schemas describe the shape we *want*, but the API does not
 // enforce them - the model can still return a string where an array was
-// requested, drop a field, etc. These helpers coerce known array/string
-// fields back into the shape the rest of the app expects, so a shape
-// mismatch degrades gracefully instead of crashing downstream `.map()` calls.
-function coerceArray(value) {
-  if (Array.isArray(value)) return value;
-  if (value === null || value === undefined || value === "") return [];
-  return [value];
+// requested, drop a field, truncate mid-generation, or (rarely) echo
+// something resembling its own tool-call syntax as literal text inside a
+// field value. These helpers coerce known array/string fields back into the
+// shape the rest of the app expects and strip any such leaked syntax, so a
+// shape mismatch degrades gracefully instead of crashing or rendering junk.
+const LEAKED_TOOL_SYNTAX = /<\/?(?:parameter|invoke|function_calls?|antml:[a-zA-Z_]+)\b[^>]*>/gi;
+
+function stripLeakedToolSyntax(str, stage) {
+  if (typeof str !== "string") return str;
+  const cleaned = str.replace(LEAKED_TOOL_SYNTAX, "").trim();
+  if (cleaned !== str.trim()) {
+    console.warn(`[${stage || "generate"}] stripped leaked tool-call syntax from a field. Original (first 300 chars):`, str.slice(0, 300));
+  }
+  return cleaned;
 }
 
-function coerceString(value) {
-  if (typeof value === "string") return value;
-  if (value === null || value === undefined) return "";
-  if (Array.isArray(value)) return value.join("\n");
-  return typeof value === "object" ? JSON.stringify(value) : String(value);
+function coerceArray(value, stage) {
+  const arr = Array.isArray(value) ? value : value === null || value === undefined || value === "" ? [] : [value];
+  return arr.map((item) => (typeof item === "string" ? stripLeakedToolSyntax(item, stage) : item));
 }
 
-async function callAnthropic({ apiKey, system, messages, tool, maxTokens, stage }) {
+function coerceString(value, stage) {
+  let str;
+  if (typeof value === "string") str = value;
+  else if (value === null || value === undefined) str = "";
+  else if (Array.isArray(value)) str = value.join("\n");
+  else str = typeof value === "object" ? JSON.stringify(value) : String(value);
+  return stripLeakedToolSyntax(str, stage);
+}
+
+async function callAnthropic({ apiKey, system, messages, tool, maxTokens, stage, _isRetry }) {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -89,9 +103,24 @@ async function callAnthropic({ apiKey, system, messages, tool, maxTokens, stage 
 
   const data = await response.json();
   const toolUse = data.content?.find((b) => b.type === "tool_use" && b.name === tool.name);
+
   if (!toolUse) {
-    console.error(`[${stage}] model did not return structured output. Raw content:`, JSON.stringify(data.content));
+    console.error(`[${stage}] model did not return structured output (stop_reason: ${data.stop_reason}). Raw content:`, JSON.stringify(data.content).slice(0, 2000));
     throw new Error("Model did not return structured output");
+  }
+
+  // A truncated generation is the most common cause of "early fields look
+  // fine, later fields are missing" - the model was still mid-JSON when it
+  // ran out of budget, so anything after the cut point never got emitted.
+  // Retry once with more room before giving up.
+  if (data.stop_reason === "max_tokens") {
+    console.warn(`[${stage}] response truncated at max_tokens=${maxTokens}. Partial input:`, JSON.stringify(toolUse.input).slice(0, 1000));
+    if (!_isRetry) {
+      const biggerBudget = Math.min(8192, maxTokens * 2);
+      console.warn(`[${stage}] retrying once with max_tokens=${biggerBudget}`);
+      return callAnthropic({ apiKey, system, messages, tool, maxTokens: biggerBudget, stage, _isRetry: true });
+    }
+    throw new Error(`${stage} response was cut off (ran out of generation budget) even after retrying with more room. Try regenerating, or shorten the source material.`);
   }
 
   // Log the shape actually returned (field name -> type) so a future schema
@@ -129,12 +158,12 @@ async function runAnalyze({ source, meta }, apiKey) {
 
   const raw = await callAnthropic({ apiKey, system: ANALYZER_SYSTEM, messages, tool, maxTokens: 2000, stage: "analyze" });
   const analysis = {
-    key_ideas: coerceArray(raw.key_ideas),
-    facts: coerceArray(raw.facts),
-    offers: coerceArray(raw.offers),
-    audience_signals: coerceString(raw.audience_signals),
-    themes: coerceArray(raw.themes),
-    important_context: coerceString(raw.important_context),
+    key_ideas: coerceArray(raw.key_ideas, "analyze"),
+    facts: coerceArray(raw.facts, "analyze"),
+    offers: coerceArray(raw.offers, "analyze"),
+    audience_signals: coerceString(raw.audience_signals, "analyze"),
+    themes: coerceArray(raw.themes, "analyze"),
+    important_context: coerceString(raw.important_context, "analyze"),
   };
   return { analysis };
 }
@@ -161,7 +190,7 @@ async function runStrategize({ source, meta, analysis }, apiKey) {
             },
             required: ["day", "channel", "content_idea"],
           },
-          description: "A ~2 week publishing calendar, one entry per row",
+          description: "7-10 entries covering roughly one to two weeks - keep each content_idea to one short sentence",
         },
       },
       required: ["angle", "hooks", "content_pillars", "publishing_strategy", "content_calendar"],
@@ -175,16 +204,16 @@ async function runStrategize({ source, meta, analysis }, apiKey) {
     },
   ];
 
-  const raw = await callAnthropic({ apiKey, system: STRATEGIST_SYSTEM, messages, tool, maxTokens: 2200, stage: "strategize" });
+  const raw = await callAnthropic({ apiKey, system: STRATEGIST_SYSTEM, messages, tool, maxTokens: 3200, stage: "strategize" });
   const strategy = {
-    angle: coerceString(raw.angle),
-    hooks: coerceArray(raw.hooks),
-    content_pillars: coerceArray(raw.content_pillars),
-    publishing_strategy: coerceString(raw.publishing_strategy),
-    content_calendar: coerceArray(raw.content_calendar).map((row) =>
+    angle: coerceString(raw.angle, "strategize"),
+    hooks: coerceArray(raw.hooks, "strategize"),
+    content_pillars: coerceArray(raw.content_pillars, "strategize"),
+    publishing_strategy: coerceString(raw.publishing_strategy, "strategize"),
+    content_calendar: coerceArray(raw.content_calendar, "strategize").map((row) =>
       row && typeof row === "object"
-        ? { day: coerceString(row.day), channel: coerceString(row.channel), content_idea: coerceString(row.content_idea) }
-        : { day: "", channel: "", content_idea: coerceString(row) }
+        ? { day: coerceString(row.day, "strategize"), channel: coerceString(row.channel, "strategize"), content_idea: coerceString(row.content_idea, "strategize") }
+        : { day: "", channel: "", content_idea: coerceString(row, "strategize") }
     ),
   };
   return { strategy };
@@ -221,6 +250,6 @@ async function runGroup({ group: groupId, outputs, source, meta, analysis, strat
 
   const maxTokens = Math.min(8000, 1200 * requestedIds.length + 800);
   const raw = await callAnthropic({ apiKey, system, messages, tool, maxTokens, stage: `group:${groupId}` });
-  const assets = Object.fromEntries(requestedIds.map((id) => [id, coerceString(raw[id])]));
+  const assets = Object.fromEntries(requestedIds.map((id) => [id, coerceString(raw[id], `group:${groupId}`)]));
   return { assets };
 }
