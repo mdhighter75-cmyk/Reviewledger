@@ -171,29 +171,14 @@ async function runAnalyze({ source, meta }, apiKey) {
 async function runStrategize({ source, meta, analysis }, apiKey) {
   const tool = {
     name: "emit_strategy",
-    description: "Content strategy and publishing plan",
+    description: "Content strategy angle and hooks",
     input_schema: {
       type: "object",
       properties: {
         angle: { type: "string", description: "The strongest angle/positioning for this content package" },
         hooks: { type: "array", items: { type: "string" }, description: "4-6 hook lines that could open various pieces of content" },
-        content_pillars: { type: "array", items: { type: "string" }, description: "3-5 recurring themes to build content around" },
-        publishing_strategy: { type: "string", description: "How to sequence and use this content package across channels" },
-        content_calendar: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: {
-              day: { type: "string" },
-              channel: { type: "string" },
-              content_idea: { type: "string" },
-            },
-            required: ["day", "channel", "content_idea"],
-          },
-          description: "7-10 entries covering roughly one to two weeks - keep each content_idea to one short sentence",
-        },
       },
-      required: ["angle", "hooks", "content_pillars", "publishing_strategy", "content_calendar"],
+      required: ["angle", "hooks"],
     },
   };
 
@@ -204,17 +189,10 @@ async function runStrategize({ source, meta, analysis }, apiKey) {
     },
   ];
 
-  const raw = await callAnthropic({ apiKey, system: STRATEGIST_SYSTEM, messages, tool, maxTokens: 3200, stage: "strategize" });
+  const raw = await callAnthropic({ apiKey, system: STRATEGIST_SYSTEM, messages, tool, maxTokens: 1500, stage: "strategize" });
   const strategy = {
     angle: coerceString(raw.angle, "strategize"),
     hooks: coerceArray(raw.hooks, "strategize"),
-    content_pillars: coerceArray(raw.content_pillars, "strategize"),
-    publishing_strategy: coerceString(raw.publishing_strategy, "strategize"),
-    content_calendar: coerceArray(raw.content_calendar, "strategize").map((row) =>
-      row && typeof row === "object"
-        ? { day: coerceString(row.day, "strategize"), channel: coerceString(row.channel, "strategize"), content_idea: coerceString(row.content_idea, "strategize") }
-        : { day: "", channel: "", content_idea: coerceString(row, "strategize") }
-    ),
   };
   return { strategy };
 }

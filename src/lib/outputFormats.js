@@ -90,7 +90,6 @@ export const OUTPUT_GROUPS = [
 export const STRATEGY_OUTPUTS = [
   { id: "source_analysis", label: "Source Analysis", folder: "strategy", ext: "md" },
   { id: "content_strategy", label: "Content Strategy", folder: "strategy", ext: "md" },
-  { id: "content_calendar", label: "Content Calendar", folder: "strategy", ext: "md" },
 ];
 
 export function findGroup(groupId) {

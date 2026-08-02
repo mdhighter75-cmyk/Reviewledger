@@ -1,10 +1,10 @@
 import { groupForOutputs, findOutput } from "./outputFormats.js";
 import { analyzeSource, strategizeContent, generateGroup } from "./api.js";
-import { analysisMarkdown, strategyMarkdown, calendarMarkdown } from "./format.js";
+import { analysisMarkdown, strategyMarkdown } from "./format.js";
 
 export const CORE_STAGES = [
   { id: "analyze", label: "Source Analyzer", desc: "Reading your material and extracting key ideas, facts, and context." },
-  { id: "strategize", label: "Content Strategist", desc: "Determining the strongest angle, hooks, and publishing strategy." },
+  { id: "strategize", label: "Content Strategist", desc: "Determining the strongest angle and hooks." },
 ];
 
 export function buildStageList(selectedOutputs) {
@@ -56,7 +56,6 @@ export async function runPipeline(project, callbacks = {}) {
       strategy,
       assets: {
         content_strategy: { content: strategyMarkdown(strategy), updatedAt: Date.now(), edited: false },
-        content_calendar: { content: calendarMarkdown(strategy.content_calendar), updatedAt: Date.now(), edited: false },
       },
     });
   } catch (err) {
@@ -97,10 +96,9 @@ export async function regenerateOutput(project, outputId) {
     return { content: analysisMarkdown(r.analysis), analysis: r.analysis };
   }
 
-  if (outputId === "content_strategy" || outputId === "content_calendar") {
+  if (outputId === "content_strategy") {
     const r = await strategizeContent({ source: source.text, meta, analysis });
-    const content = outputId === "content_strategy" ? strategyMarkdown(r.strategy) : calendarMarkdown(r.strategy.content_calendar);
-    return { content, strategy: r.strategy };
+    return { content: strategyMarkdown(r.strategy), strategy: r.strategy };
   }
 
   const def = findOutput(outputId);

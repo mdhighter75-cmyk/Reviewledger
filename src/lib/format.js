@@ -1,6 +1,6 @@
-// Markdown formatters for the internal strategy-stage assets
-// (source analysis / content strategy / content calendar), shared between
-// the pipeline (to populate the Results screen) and the ZIP exporter.
+// Markdown formatters for the internal strategy-stage assets (source
+// analysis / content strategy), shared between the pipeline (to populate the
+// Results screen) and the ZIP exporter.
 //
 // The model is asked for array fields via the tool schema, but tool-use
 // schemas are a guide, not an enforced contract - a field can still come
@@ -38,21 +38,5 @@ export function strategyMarkdown(strategy) {
     strategy.angle || "",
     "\n## Hooks",
     ...toArray(strategy.hooks).map((i) => `- ${i}`),
-    "\n## Content Pillars",
-    ...toArray(strategy.content_pillars).map((i) => `- ${i}`),
-    "\n## Publishing Strategy",
-    strategy.publishing_strategy || "",
   ].join("\n");
-}
-
-export function calendarMarkdown(calendar) {
-  const rows = toArray(calendar);
-  if (rows.length === 0) return "_No calendar generated._";
-  const lines = rows
-    .map((row) => {
-      if (row && typeof row === "object") return `| ${row.day || ""} | ${row.channel || ""} | ${row.content_idea || ""} |`;
-      return `| | | ${row} |`;
-    })
-    .join("\n");
-  return `| Day | Channel | Content Idea |\n| --- | --- | --- |\n${lines}`;
 }

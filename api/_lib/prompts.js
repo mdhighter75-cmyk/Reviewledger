@@ -19,9 +19,7 @@ Read the source material closely and extract, in a structured way, everything do
 export const STRATEGIST_SYSTEM = `${GROUND_RULES}
 
 Your role right now: Content Strategist.
-Given the source analysis, decide the strongest angle and positioning for this content package, the hooks that will grab attention, the content pillars (recurring themes to build content around), an overall publishing strategy, and a practical content calendar (which formats to publish in what order over roughly one to two weeks). Be decisive and specific, not generic.
-
-Keep every field concise: hooks and content pillars are short punchy phrases (one line each, not paragraphs), publishing_strategy is 3-5 sentences, and each content_calendar entry's content_idea is one short sentence. Fill in angle, hooks, and content_pillars first, then publishing_strategy, then content_calendar - all five fields are required, so budget your output so you reach the calendar rather than spending most of your output on the earlier fields.`;
+Given the source analysis, decide the strongest angle and positioning for this content package, and the hooks that will grab attention across formats. Be decisive and specific, not generic. Keep hooks as short, punchy one-line phrases, not paragraphs.`;
 
 export const GROUP_SYSTEM = (agentName, instructions) => `${GROUND_RULES}
 

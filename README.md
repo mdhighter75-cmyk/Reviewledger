@@ -18,7 +18,7 @@ Under the hood, the "BUILD CONTENT PACKAGE" button runs a pipeline of
 specialized AI stages, each with a narrow job:
 
 1. **Source Analyzer** — extracts key ideas, facts, offers, audience signals, and themes from your source material.
-2. **Content Strategist** — decides the strongest angle, hooks, content pillars, and a publishing calendar.
+2. **Content Strategist** — decides the strongest angle and the hooks that will grab attention across formats.
 3. **Long-Form Writer** — blog/article, newsletter, product description, landing-page copy.
 4. **Social Media Creator** — Facebook, Instagram, LinkedIn, X/Twitter posts, hashtags.
 5. **Short-Form Video Writer** — TikTok, Reels, and YouTube Shorts hooks/scripts.
@@ -101,7 +101,7 @@ route backed by Postgres/SQLite) — nothing in the UI needs to change.
 ```
 project-name/
   source/            original source text
-  strategy/          source analysis, content strategy, content calendar
+  strategy/          source analysis, content strategy (angle + hooks)
   long-form/         blog, newsletter, product description, landing page
   social/            Facebook, Instagram, LinkedIn, X, hashtags
   video/              TikTok/Reels/Shorts scripts + full YouTube script/description

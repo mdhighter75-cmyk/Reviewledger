@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import { findOutput, STRATEGY_OUTPUTS } from "./outputFormats.js";
-import { analysisMarkdown, strategyMarkdown, calendarMarkdown } from "./format.js";
+import { analysisMarkdown, strategyMarkdown } from "./format.js";
 
 function slugify(name) {
   return (
@@ -21,7 +21,6 @@ export async function buildProjectZip(project) {
   const strategyFolder = root.folder("strategy");
   strategyFolder.file("source-analysis.md", analysisMarkdown(project.analysis));
   strategyFolder.file("content-strategy.md", strategyMarkdown(project.strategy));
-  strategyFolder.file("content-calendar.md", calendarMarkdown(project.strategy?.content_calendar));
 
   for (const [outputId, asset] of Object.entries(project.assets || {})) {
     if (!asset || !asset.content) continue;
