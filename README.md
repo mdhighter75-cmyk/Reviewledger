@@ -46,13 +46,15 @@ claims that aren't there.
 - `src/lib/zipExport.js` — builds the downloadable ZIP with correctly named folders.
 - `api/generate.js` — the one serverless function that talks to the Anthropic API. Keeps your API key server-side.
 - `api/_lib/prompts.js` — system prompts / per-stage writing instructions.
+- `src/components/PaywallScreen.jsx` + `src/lib/subscription.js` — the subscription paywall UI and its client (see below).
+- `api/stripe/` — serverless functions for Stripe Checkout, session verification, subscription re-checks, and the billing portal.
 - `vercel.json` — routing config for deployment on Vercel.
 
 ## Local development
 
 ```bash
 npm install
-cp env.example .env.local   # then paste in your Anthropic key
+cp env.example .env.local   # then paste in your Anthropic and Stripe keys
 npm run dev
 ```
 
@@ -73,11 +75,24 @@ both.)
 
 1. Push this repo to GitHub.
 2. Go to [vercel.com](https://vercel.com) → **Add New Project** → import the repo. Vercel auto-detects Vite.
-3. Before deploying, add an environment variable: **Settings → Environment Variables**
+3. Before deploying, add these environment variables: **Settings → Environment Variables**
    - `ANTHROPIC_API_KEY` = your key from [console.anthropic.com](https://console.anthropic.com)
-4. Deploy.
+   - `STRIPE_SECRET_KEY` = your secret key from [dashboard.stripe.com](https://dashboard.stripe.com) → Developers → API keys
+   - `STRIPE_PRICE_ID` = the Price ID (starts with `price_`) of your recurring Empire Content Factory subscription, from Stripe Dashboard → Product catalog
+4. In Stripe Dashboard, make sure the [Customer Portal](https://dashboard.stripe.com/settings/billing/portal) is activated (Settings → Billing → Customer portal) — "Manage Subscription" won't work until it is.
+5. Deploy.
 
-That's the only environment variable required.
+## Subscription (paywall)
+
+The app sits behind a $49.99/mo Stripe subscription. Flow:
+
+1. First visit shows a landing/paywall screen ("Unlock — $49.99/mo"). Clicking it calls `/api/stripe/create-checkout-session`, which creates a Stripe Checkout Session in subscription mode using `STRIPE_SECRET_KEY` + `STRIPE_PRICE_ID`, and the browser is redirected to Stripe.
+2. On success, Stripe redirects back to the app with `?session_id=...` in the URL. The app calls `/api/stripe/verify-session`, which retrieves that Checkout Session **server-side** and only grants access if the attached subscription's status is `active`.
+3. The resulting `{ customerId, subscriptionId, status }` is cached in `localStorage` purely as a convenience, so returning subscribers aren't re-verifying on every click.
+4. On every fresh page load, the app re-checks that cached customer's subscription against Stripe via `/api/stripe/check-subscription` before trusting it — so a cancellation or failed payment revokes access automatically on the next visit, not just at signup. (A transient network error while re-checking doesn't immediately lock out a subscriber whose last known status was active; a genuine "not active" response from Stripe does.)
+5. **Manage Subscription** in the header sends the user to Stripe's hosted billing portal (`/api/stripe/create-portal-session`) to update payment info or cancel.
+
+This intentionally doesn't use a Stripe webhook — status is re-checked on demand instead of pushed, which keeps setup simpler (no webhook secret/endpoint to configure) at the cost of access changes only being reflected on the subscriber's *next* page load rather than instantly. Good enough for a single-tenant paywall; add a `/api/stripe/webhook` route if you need instant revocation.
 
 ## Project memory
 
@@ -114,6 +129,6 @@ project-name/
 
 ## Notes on this build
 
-- No billing, accounts, or analytics — this is the core content engine only.
+- No accounts or analytics — subscription gating is per-browser (via the cached Stripe customer ID), not tied to a login system.
 - Failures are isolated per content group, so one broken generation doesn't take down the rest of the package.
 - The pipeline is modular: to add a new content worker, add an entry to `OUTPUT_GROUPS` in `src/lib/outputFormats.js` and its writing instructions in `api/_lib/prompts.js`.
